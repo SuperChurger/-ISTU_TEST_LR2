@@ -76,5 +76,71 @@ namespace SeedGrowthModel.Tests
             Assert.Single(withLeaves);
             Assert.Equal(bigSprout, withLeaves[0]);
         }
+
+        // Use Case 4: Контроллер сохраняет порядок обработанных семян (накопление как журнал событий)
+        [Fact]
+        public void UseCase_ControllerPreservesProcessingOrder()
+        {
+            var climate = new Mock<IClimate>();
+            climate.Setup(c => c.GetTemperature()).Returns(25);
+            var controller = new PlantController(climate.Object);
+
+            var light = new LightSystem();
+            light.TurnOn(10);
+
+            var a = new Seed("A"); a.Water();
+            var b = new Seed("B"); b.Water();
+            var c = new Seed("C"); c.Water();
+
+            controller.ProcessGrowth(a, light);
+            controller.ProcessGrowth(b, light);
+            controller.ProcessGrowth(c, light);
+
+            var all = controller.GetAllProcessedSeeds();
+            Assert.Equal(new[] { "A", "B", "C" }, all.Select(s => s.Id).ToArray());
+        }
+
+        // Use Case 5: Обработка при недостатке света (накопление без прорастания)
+        [Fact]
+        public void UseCase_ProcessGrowth_WhenLightNotEnough_AccumulatesButDoesNotSprout()
+        {
+            var climate = new Mock<IClimate>();
+            climate.Setup(c => c.GetTemperature()).Returns(30);
+            var controller = new PlantController(climate.Object);
+
+            var light = new LightSystem(); // off => not enough light
+            var seed = new Seed("s1");
+            seed.Water();
+
+            controller.ProcessGrowth(seed, light);
+
+            Assert.Single(controller.GetAllProcessedSeeds());
+            Assert.Contains(seed, controller.GetAllProcessedSeeds());
+            Assert.False(seed.IsSprouted);
+        }
+
+        // Use Case 6: Выборка проросших семян после разных температур (выборка по условию)
+        [Fact]
+        public void UseCase_FilterSproutedSeeds_AfterDifferentTemperatureRuns()
+        {
+            var climate = new Mock<IClimate>();
+            var controller = new PlantController(climate.Object);
+
+            var light = new LightSystem();
+            light.TurnOn(10);
+
+            var warm = new Seed("warm"); warm.Water();
+            var cold = new Seed("cold"); cold.Water();
+
+            climate.Setup(c => c.GetTemperature()).Returns(25);
+            controller.ProcessGrowth(warm, light);
+
+            climate.Setup(c => c.GetTemperature()).Returns(10);
+            controller.ProcessGrowth(cold, light);
+
+            var sprouted = controller.GetSproutedSeeds().Select(s => s.Id).ToList();
+            Assert.Single(sprouted);
+            Assert.Contains("warm", sprouted);
+        }
     }
 }

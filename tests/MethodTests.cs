@@ -33,6 +33,28 @@ namespace SeedGrowthModel.Tests
             Assert.False(seed.IsSprouted);
         }
 
+        [Fact]
+        public void Seed_TrySprout_TemperatureExactly15_DoesNotSprout()
+        {
+            var seed = new Seed("s1");
+            seed.Water();
+
+            seed.TrySprout(15);
+
+            Assert.False(seed.IsSprouted);
+        }
+
+        [Fact]
+        public void Seed_TrySprout_TemperatureJustAbove15_Sprouts()
+        {
+            var seed = new Seed("s1");
+            seed.Water();
+
+            seed.TrySprout(15.0001);
+
+            Assert.True(seed.IsSprouted);
+        }
+
         // ----- Soil -----
         [Fact]
         public void Soil_AbsorbWater_IncreasesMoisture()
@@ -47,6 +69,24 @@ namespace SeedGrowthModel.Tests
         {
             var soil = new Soil();
             soil.AbsorbWater(0.6);
+            Assert.True(soil.IsMoistEnough());
+        }
+
+        [Fact]
+        public void Soil_IsMoistEnough_WhenExactlyPointFive_ReturnsFalse()
+        {
+            var soil = new Soil();
+            soil.AbsorbWater(0.5);
+
+            Assert.False(soil.IsMoistEnough());
+        }
+
+        [Fact]
+        public void Soil_IsMoistEnough_WhenJustAbovePointFive_ReturnsTrue()
+        {
+            var soil = new Soil();
+            soil.AbsorbWater(0.50001);
+
             Assert.True(soil.IsMoistEnough());
         }
 
@@ -87,6 +127,21 @@ namespace SeedGrowthModel.Tests
             mockSoil.Verify(s => s.AbsorbWater(It.IsAny<double>()), Times.Never);
         }
 
+        [Fact]
+        public void WateringSystem_Water_WhenWaterLevelExactlyPoint3_WatersAndBecomesZero()
+        {
+            var ws = new WateringSystem();
+            ws.Fill(0.3);
+            var seed = new Seed("s1");
+            var soil = new Soil();
+
+            ws.Water(seed, soil);
+
+            Assert.True(seed.IsWatered);
+            Assert.Equal(0.3, soil.Moisture, 10);
+            Assert.Equal(0, ws.WaterLevel, 10);
+        }
+
         // ----- Gardener (с моками) -----
         [Fact]
         public void Gardener_WaterSeed_CallsSeedAndSoilMethods()
@@ -122,6 +177,24 @@ namespace SeedGrowthModel.Tests
             Assert.Equal(0, light.LightLevel);
         }
 
+        [Fact]
+        public void LightSystem_IsEnoughLight_LevelExactly5_ReturnsFalse()
+        {
+            var light = new LightSystem();
+            light.TurnOn(5);
+
+            Assert.False(light.IsEnoughLight());
+        }
+
+        [Fact]
+        public void LightSystem_IsEnoughLight_LevelJustAbove5_ReturnsTrue()
+        {
+            var light = new LightSystem();
+            light.TurnOn(5.0001);
+
+            Assert.True(light.IsEnoughLight());
+        }
+
         // ----- Climate -----
         [Fact]
         public void Climate_SetTemperature_ChangesValue()
@@ -146,6 +219,27 @@ namespace SeedGrowthModel.Tests
             controller.ProcessGrowth(seed, light);
 
             mockClimate.Verify(c => c.GetTemperature(), Times.Once);
+        }
+
+        [Fact]
+        public void PlantController_ProcessGrowth_CallsClimateEveryTime()
+        {
+            var climate = new Mock<IClimate>();
+            climate.Setup(c => c.GetTemperature()).Returns(20);
+            var controller = new PlantController(climate.Object);
+
+            var light = new LightSystem();
+            light.TurnOn(10);
+
+            var seed1 = new Seed("s1");
+            var seed2 = new Seed("s2");
+            seed1.Water();
+            seed2.Water();
+
+            controller.ProcessGrowth(seed1, light);
+            controller.ProcessGrowth(seed2, light);
+
+            climate.Verify(c => c.GetTemperature(), Times.Exactly(2));
         }
     }
 }

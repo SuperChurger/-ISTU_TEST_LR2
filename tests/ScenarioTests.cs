@@ -97,5 +97,49 @@ namespace SeedGrowthModel.Tests
             Assert.Contains(seed2, sprouted);
             Assert.DoesNotContain(seed3, sprouted);
         }
+
+        // Сценарий 6: Система полива + контроллер (полив -> свет/температура -> прорастание)
+        [Fact]
+        public void Scenario_WaterThenProcessGrowth_SeedSproutsAndResourcesChange()
+        {
+            var ws = new WateringSystem();
+            ws.Fill(1.0);
+
+            var seed = new Seed("s1");
+            var soil = new Soil();
+            ws.Water(seed, soil);
+
+            var climate = new Mock<IClimate>();
+            climate.Setup(c => c.GetTemperature()).Returns(22);
+            var controller = new PlantController(climate.Object);
+
+            var light = new LightSystem();
+            light.TurnOn(10);
+
+            controller.ProcessGrowth(seed, light);
+
+            Assert.True(seed.IsWatered);
+            Assert.True(seed.IsSprouted);
+            Assert.Equal(0.3, soil.Moisture, 10);
+            Assert.Equal(0.7, ws.WaterLevel, 10);
+            Assert.Contains(seed, controller.GetAllProcessedSeeds());
+        }
+
+        // Сценарий 7: Несколько поливов садовником увеличивают счётчик и влажность накапливается
+        [Fact]
+        public void Scenario_GardenerWatersMultipleTimes_CountIncrementsAndSoilAccumulates()
+        {
+            var gardener = new Gardener();
+            var seed = new Seed("s1");
+            var soil = new Soil();
+
+            gardener.WaterSeed(seed, soil);
+            gardener.WaterSeed(seed, soil);
+            gardener.WaterSeed(seed, soil);
+
+            Assert.True(seed.IsWatered);
+            Assert.Equal(0.9, soil.Moisture, 10);
+            Assert.Equal(3, gardener.WateringActionsCount);
+        }
     }
 }
