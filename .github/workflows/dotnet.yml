@@ -16,12 +16,13 @@ jobs:
     - name: Build
       run: dotnet build --no-restore
     - name: Test with coverage
-      run: dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=./lcov.info
+      run: dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=./TestResults/
     - name: Report coverage
       uses: danielpalme/ReportGenerator-GitHub-Action@v5
       with:
-        reports: '**/lcov.info'
+        reports: '**/coverage.cobertura.xml'
         targetdir: 'coveragereport'
+        reporttypes: 'Html'
     - name: Upload coverage report
       uses: actions/upload-artifact@v4
       with:
